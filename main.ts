@@ -1,5 +1,5 @@
 import { IMeasurement } from "./ecgmeasurements.js";
-import { ECGViewer, ViewerAction } from "./ecgviewer.js";
+import { CalibrationResult, ECGViewer, ViewerAction } from "./ecgviewer.js";
 
 window.addEventListener('DOMContentLoaded', (ev: Event) => {
     const eviewer = new ECGViewer('viewer', 'img/test.jpg');
@@ -12,21 +12,14 @@ window.addEventListener('DOMContentLoaded', (ev: Event) => {
       eviewer.setViewerAction(ViewerAction.CALIB_X_REF);
     })
 
-    window.document.getElementById('calibY').addEventListener('click', (e: Event) => {
-      eviewer.setViewerAction(ViewerAction.CALIB_Y_REF);
-    })
-
     window.document.getElementById('measureDist').addEventListener('click', (e: Event) => {
       eviewer.setViewerAction(ViewerAction.MEASURE_DIST_1);
     })
 
-    eviewer.addEventListener('calibXFinished', (res: number) => {
-      window.document.getElementById('pxPerMM').innerText = res.toString()
-      return true
-    })
-
-    eviewer.addEventListener('calibYFinished', (res: number) => {
-      window.document.getElementById('pxPerMV').innerText = res.toString()
+    eviewer.addEventListener('calibrationFinished', (res: CalibrationResult) => {
+      console.log(res)
+      window.document.getElementById('pxPerMM').innerText = res.pixelsPerMillisecond.toString()
+      window.document.getElementById('pxPerMV').innerText = res.pixelsPerMillivolts.toString()
       return true
     })
 

@@ -13,12 +13,25 @@ export enum ViewerAction {
   NONE,
   CALIB_X_REF,
   CALIB_X_MEASURE,
-  CALIB_Y_REF,
-  CALIB_Y_MEASURE,
   MEASURE_DIST_1,
   MEASURE_DIST_2,
   SELECT
 };
+
+export enum PaperSpeed {
+  MM50,
+  MM25
+}
+
+export class CalibrationResult {
+  public pixelsPerMillisecond: number
+  public pixelsPerMillivolts: number
+
+  constructor(pixelsPerMS: number, pixelsPerMV: number) {
+    this.pixelsPerMillisecond = pixelsPerMS
+    this.pixelsPerMillivolts = pixelsPerMV
+  }
+}
 
 const SMOOTHING = 1;
 
@@ -36,6 +49,7 @@ export class ECGViewer extends EventBase {
   mouseDownPos: Point2D = new Point2D(0, 0);
   mouseButton: MouseButtonPressedState;
   currentViewerAction: ViewerAction = ViewerAction.NONE;
+  paperSpeed = PaperSpeed.MM50
 
 
   kbModifiers = {
@@ -44,7 +58,7 @@ export class ECGViewer extends EventBase {
     CTRL: false
   }
 
-  pixelsPerMillimeter = 0
+  pixelsPerMillisecond = 0
   pixelsPerMillivolts = 0
   millimetersPerSecond = 50
 
@@ -93,28 +107,13 @@ export class ECGViewer extends EventBase {
         }
 
         case ViewerAction.CALIB_X_MEASURE: {
-          this.pixelsPerMillimeter = Math.abs(this.anchorPos.x - this.mouseDownPos.x)
-
-          this.setViewerAction(ViewerAction.NONE)
-          this.emit('calibXFinished', this.pixelsPerMillimeter)
-          break
-        }
-
-        case ViewerAction.CALIB_Y_REF: {
-          this.anchorPos = new Point2D(
-            ev.clientX - this.canvas.getBoundingClientRect().left,
-            ev.clientY - this.canvas.getBoundingClientRect().top
-          )
-          
-          this.setViewerAction(ViewerAction.CALIB_Y_MEASURE)
-          break
-        }
-
-        case ViewerAction.CALIB_Y_MEASURE: {
+          let factor = (this.paperSpeed == PaperSpeed.MM25 ? 200 : 100)
+          console.log(Math.abs(this.anchorPos.x - this.mouseDownPos.x))
+          this.pixelsPerMillisecond = factor / Math.abs(this.anchorPos.x - this.mouseDownPos.x)
           this.pixelsPerMillivolts = Math.abs(this.anchorPos.y - this.mouseDownPos.y)
 
           this.setViewerAction(ViewerAction.NONE)
-          this.emit('calibYFinished', this.pixelsPerMillivolts)
+          this.emit('calibrationFinished', new CalibrationResult(this.pixelsPerMillisecond, this.pixelsPerMillivolts))
           break
         }
 
@@ -133,12 +132,8 @@ export class ECGViewer extends EventBase {
             this.currentMeasurementData.start,
             this.currentMeasurementData.end,
           )
-          
-          
-          let pixelsPerMillisceond = (this.pixelsPerMillimeter * this.millimetersPerSecond) / 1000
-          let d_ms = d_px * pixelsPerMillisceond
-
-          let newMeasurement = new Distance(d_ms, MeasurementUnit.MILLISECONDS)
+            console.log(d_px)
+          let newMeasurement = new Distance(d_px * this.pixelsPerMillisecond, MeasurementUnit.MILLISECONDS)
 
           this.measurements.push(newMeasurement)
           this.emit('measurementsUpdated', newMeasurement)
@@ -197,20 +192,15 @@ export class ECGViewer extends EventBase {
       case  ViewerAction.CALIB_X_MEASURE: {
         ctx.strokeStyle = 'red';
         ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(this.anchorPos.x, this.anchorPos.y)
-        ctx.lineTo(this.mousePos.x, this.anchorPos.y)
+        
+        ctx.beginPath()
+        ctx.rect(
+          this.anchorPos.x, this.anchorPos.y,
+          this.mousePos.x - this.anchorPos.x,
+          this.mousePos.y - this.anchorPos.y,
+        )
         ctx.stroke()
-        break
-      }
-      
-      case ViewerAction.CALIB_Y_MEASURE: {
-        ctx.strokeStyle = 'red';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(this.anchorPos.x, this.anchorPos.y)
-        ctx.lineTo(this.anchorPos.x, this.mousePos.y)
-        ctx.stroke()
+
         break
       }
 

@@ -37,7 +37,7 @@ class EventBase implements EventAware {
     }
     
     for (let item of this._events[eventType]) {
-      if (!item(args)) {
+      if (!item(...args)) {
         break
       }
     }
