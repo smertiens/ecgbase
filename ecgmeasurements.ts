@@ -1,4 +1,6 @@
-enum MeaurementType {
+import { Point2D } from "./graphics.js"
+
+enum MeasurementType {
   DISTANCE,
   RADIUS,
   ANGLE
@@ -11,30 +13,38 @@ enum MeasurementUnit {
   MILLIVOLTS
 }
 
-interface IMeasurement {}
+interface IMeasurement {
+  type: MeasurementType
+}
 
 class Measurement implements IMeasurement {
-  type: MeaurementType
+  type: MeasurementType
   unit: MeasurementUnit
   label = ''
 }
 
 class Distance extends Measurement {
-  distance = 0
+  start: Point2D
+  end: Point2D
 
-  constructor(dist: number, unit: MeasurementUnit) {
+  constructor(start: Point2D, end: Point2D, unit: MeasurementUnit) {
     super()
-    this.type = MeaurementType.DISTANCE
-    this.distance = dist
+    this.type = MeasurementType.DISTANCE
+    this.start = start
+    this.end = end
     this.unit = unit
+  }
+
+  getDistance(): number {
+    return Point2D.distance(this.start, this.end)
   }
 }
 
 class Radius extends Measurement {
   constructor(center: number, r: number) {
     super()
-    this.type = MeaurementType.RADIUS
+    this.type = MeasurementType.RADIUS
   }
 }
 
-export { MeaurementType, Distance, Radius, IMeasurement, MeasurementUnit }
+export { MeasurementType, Distance, Radius, IMeasurement, MeasurementUnit }

@@ -1,6 +1,6 @@
-import { Point2D } from "./graphics.js";
+import { Point2D } from "./graphics.js"
 import { EventBase } from './events.js'
-import { Distance, IMeasurement, MeasurementUnit } from "./ecgmeasurements.js";
+import { Distance, IMeasurement, MeasurementUnit, MeasurementType } from "./ecgmeasurements.js";
 
 enum MouseButtonPressedState {
   NONE_PRESSED,
@@ -62,7 +62,7 @@ export class ECGViewer extends EventBase {
   pixelsPerMillivolts = 0
   millimetersPerSecond = 50
 
-  currentMeasurementData: { [key: string]: any }
+  currentMeasurementData: IMeasurement
   measurements: IMeasurement[] = []
 
   constructor(id: string, imgPath: string) {
@@ -110,7 +110,7 @@ export class ECGViewer extends EventBase {
           let factor = (this.paperSpeed == PaperSpeed.MM25 ? 200 : 100)
           console.log(Math.abs(this.anchorPos.x - this.mouseDownPos.x))
           this.pixelsPerMillisecond = factor / Math.abs(this.anchorPos.x - this.mouseDownPos.x)
-          this.pixelsPerMillivolts = Math.abs(this.anchorPos.y - this.mouseDownPos.y)
+          this.pixelsPerMillivolts = Math.abs(this.anchorPos.y - this.mouseDownPos.y) / 2
 
           this.setViewerAction(ViewerAction.NONE)
           this.emit('calibrationFinished', new CalibrationResult(this.pixelsPerMillisecond, this.pixelsPerMillivolts))
@@ -128,15 +128,15 @@ export class ECGViewer extends EventBase {
         }
 
         case ViewerAction.MEASURE_DIST_2: {
-          let d_px = Point2D.distance(
+          /*let d_px = Point2D.distance(
             this.currentMeasurementData.start,
             this.currentMeasurementData.end,
           )
-            console.log(d_px)
-          let newMeasurement = new Distance(d_px * this.pixelsPerMillisecond, MeasurementUnit.MILLISECONDS)
-
-          this.measurements.push(newMeasurement)
-          this.emit('measurementsUpdated', newMeasurement)
+          
+          let newMeasurement = new Distance(this.currentMeasurementData.start, this.currentMeasurementData.end, MeasurementUnit.MILLISECONDS)
+          */
+          this.measurements.push(this.currentMeasurementData)
+          this.emit('measurementsUpdated', this.currentMeasurementData)
           this.setViewerAction(ViewerAction.NONE)
           break
         }
@@ -154,15 +154,15 @@ export class ECGViewer extends EventBase {
       )
     
       if (this.mouseButton == MouseButtonPressedState.LEFT_PRESSED) {
-        this.scrollPos.x = -this.bgDragStartPos.x -(this.mouseDownPos.x - ev.clientX) * SMOOTHING;
-        this.scrollPos.y = -this.bgDragStartPos.y -(this.mouseDownPos.y - ev.clientY) * SMOOTHING; 
+        this.scrollPos.x = ev.clientX - this.mouseDownPos.x + this.bgDragStartPos.x
+        this.scrollPos.y = ev.clientY - this.mouseDownPos.y + this.bgDragStartPos.y
       }
       
-      this.paint();
+      this.paint()
     })
 
-    this.img = new Image();
-    this.img.src = imgPath;
+    this.img = new Image()
+    this.img.src = imgPath
 
     this.img.addEventListener('load', () => {
       this.paint();
@@ -182,11 +182,19 @@ export class ECGViewer extends EventBase {
     return this.measurements
   }
 
+  getPixelDistanceAsMS(dist: number): number {
+    return dist * this.pixelsPerMillisecond
+  }
+
   paint() {
-    const ctx = this.canvas.getContext('2d');
-    ctx.clearRect(0, 0, 800, 600);
+    const ctx = this.canvas.getContext('2d')
+    ctx.clearRect(0, 0, 800, 600)
     ctx.drawImage(this.img, this.scrollPos.x, this.scrollPos.y, this.img.width * this.zoomFactor, 
-        this.img.height * this.zoomFactor);
+        this.img.height * this.zoomFactor)
+
+    for (let m of this.measurements) {
+      this.paintMeasurement(m)
+    }
       
     switch (this.currentViewerAction) {
       case  ViewerAction.CALIB_X_MEASURE: {
@@ -218,30 +226,40 @@ export class ECGViewer extends EventBase {
           end = new Point2D(this.mousePos.x, this.mousePos.y)
         }
 
-        ctx.beginPath();
-
-        // marker start
-        ctx.moveTo(start.x, start.y - markerHeight / 2)
-        ctx.lineTo(start.x, start.y + markerHeight / 2)
-        ctx.stroke()
-
-        // marker end
-        ctx.moveTo(end.x, end.y - markerHeight / 2)
-        ctx.lineTo(end.x, end.y + markerHeight / 2)
-        ctx.stroke()
-
-        // measurement line
-        ctx.moveTo(start.x, start.y)
-        ctx.lineTo(end.x, end.y)
-        ctx.stroke()
-
-        this.currentMeasurementData = {
-          start: start,
-          end: end
-        }
+        this.currentMeasurementData = new Distance(start, end, MeasurementUnit.MILLISECONDS)
+        this.paintMeasurement(this.currentMeasurementData)
         break
       }
     }
   }
 
+  private paintMeasurement(data: IMeasurement): void {
+    // TODO: add bg position
+    const ctx = this.canvas.getContext('2d')
+    ctx.strokeStyle = 'red'
+    ctx.lineWidth = 2;
+    const markerHeight = 50
+
+    switch (data.type) {
+      case MeasurementType.DISTANCE:
+        let dist = <Distance> data
+        ctx.beginPath();
+
+        // marker start
+        ctx.moveTo(dist.start.x, dist.start.y - markerHeight / 2)
+        ctx.lineTo(dist.start.x, dist.start.y + markerHeight / 2)
+        ctx.stroke()
+
+        // marker end
+        ctx.moveTo(dist.end.x, dist.end.y - markerHeight / 2)
+        ctx.lineTo(dist.end.x, dist.end.y + markerHeight / 2)
+        ctx.stroke()
+
+        // measurement line
+        ctx.moveTo(dist.start.x, dist.start.y)
+        ctx.lineTo(dist.end.x, dist.end.y)
+        ctx.stroke()
+        break
+    }
+  }
 }
