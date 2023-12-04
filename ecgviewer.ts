@@ -152,10 +152,12 @@ export class ECGViewer extends EventBase {
         ev.clientX - this.canvas.getBoundingClientRect().left,
         ev.clientY - this.canvas.getBoundingClientRect().top
       )
+
+      console.log(this.mousePos)
     
       if (this.mouseButton == MouseButtonPressedState.LEFT_PRESSED) {
-        this.scrollPos.x = ev.clientX - this.mouseDownPos.x + this.bgDragStartPos.x
-        this.scrollPos.y = ev.clientY - this.mouseDownPos.y + this.bgDragStartPos.y
+        this.scrollPos.x = ev.clientX - this.canvas.getBoundingClientRect().left - this.mouseDownPos.x + this.bgDragStartPos.x
+        this.scrollPos.y = ev.clientY - this.canvas.getBoundingClientRect().top - this.mouseDownPos.y + this.bgDragStartPos.y
       }
       
       this.paint()
@@ -188,7 +190,8 @@ export class ECGViewer extends EventBase {
 
   paint() {
     const ctx = this.canvas.getContext('2d')
-    ctx.clearRect(0, 0, 800, 600)
+    ctx.clearRect(0, 0, this.canvas.offsetWidth, this.canvas.offsetHeight)
+
     ctx.drawImage(this.img, this.scrollPos.x, this.scrollPos.y, this.img.width * this.zoomFactor, 
         this.img.height * this.zoomFactor)
 
@@ -246,18 +249,18 @@ export class ECGViewer extends EventBase {
         ctx.beginPath();
 
         // marker start
-        ctx.moveTo(dist.start.x, dist.start.y - markerHeight / 2)
-        ctx.lineTo(dist.start.x, dist.start.y + markerHeight / 2)
+        ctx.moveTo(dist.start.x + this.scrollPos.x, dist.start.y  + this.scrollPos.y - markerHeight / 2)
+        ctx.lineTo(dist.start.x + this.scrollPos.x, dist.start.y  + this.scrollPos.y + markerHeight / 2)
         ctx.stroke()
 
         // marker end
-        ctx.moveTo(dist.end.x, dist.end.y - markerHeight / 2)
-        ctx.lineTo(dist.end.x, dist.end.y + markerHeight / 2)
+        ctx.moveTo(dist.end.x + this.scrollPos.x, dist.end.y  + this.scrollPos.y - markerHeight / 2)
+        ctx.lineTo(dist.end.x + this.scrollPos.x, dist.end.y  + this.scrollPos.y + markerHeight / 2)
         ctx.stroke()
 
         // measurement line
-        ctx.moveTo(dist.start.x, dist.start.y)
-        ctx.lineTo(dist.end.x, dist.end.y)
+        ctx.moveTo(dist.start.x + this.scrollPos.x, dist.start.y + this.scrollPos.y)
+        ctx.lineTo(dist.end.x + this.scrollPos.x, dist.end.y + this.scrollPos.y)
         ctx.stroke()
         break
     }
